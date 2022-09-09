@@ -1,3 +1,4 @@
+;;; POC for supporting AnnualReview mortgages in Mambu
 (ns mambu.product_catalogue.mortgages.annual_review.annual_review 
  (:require [http.api.json_helper :as api]
            [http.api.api_pipe :as steps]
@@ -92,7 +93,9 @@
     (prn (str "New Customer + AnnualReview Mortgage  created - custid=" custid " arv-account=" arev-accid))))
 
 
-
+;; This function works out the principal-paid from an instalment list
+;; Was planning to use in annual-review-account-update to calculate principal-remain but decided against it
+;; Leaving it in here, for the time being because I may decide to use later...
 (defn principal-paid [filt-list-before]
   (let [prin-paid-total (reduce
                          (fn [res inst-obj]
