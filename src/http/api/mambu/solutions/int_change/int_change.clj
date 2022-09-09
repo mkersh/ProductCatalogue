@@ -7,8 +7,7 @@
             [clojure.pprint :as pp]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [http.api.mambu.experiments.loan_schedule :as ext]
-            [ring.middleware.resource :as res]))
+            [http.api.mambu.experiments.loan_schedule :as ext]))
 
 
 ;; Maps product-key(s) to the :preview-template to use

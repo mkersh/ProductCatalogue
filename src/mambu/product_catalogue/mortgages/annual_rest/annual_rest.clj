@@ -12,10 +12,10 @@
             ))
 
 
-(defonce ARESTCALC-PROD-KEY (atom "8a19c04783160b4c01831665a0220798"))
-(defonce ARESTPRIN-PROD-KEY (atom "8a19d2348317536001831d1d70ea2fbe")) ;; new= 8a19d2348317536001831d1d70ea2fbe old=8a19c04783160b4c01831674fe4e0816
-(defonce ARESTINT-PROD-KEY (atom "8a19c04783160b4c0183167b5d1e0841"))
-(defonce PAYSETTLE-PROD-KEY (atom "8a19c04783160b4c01831689a2f52145"))
+(def ARESTCALC-PROD-KEY (atom "8a19cff4831dda0801831e7b819f037a")) ;; new3 = 8a19a6bb8321062b0183214d806f0b0c (365 day-count) new2 = 8a19cff4831dda0801831e7b819f037a (30/360 day-count) old = 8a19c04783160b4c01831665a0220798
+(def ARESTPRIN-PROD-KEY (atom "8a19d2348317536001831d1d70ea2fbe")) ;; new2= 8a19d2348317536001831d1d70ea2fbe old=8a19c04783160b4c01831674fe4e0816
+(def ARESTINT-PROD-KEY (atom "8a19c04783160b4c0183167b5d1e0841"))  ;; new2= 8a19a6bb8321062b01832157ca870887 (365 day-count) old= 8a19c04783160b4c0183167b5d1e0841 (30/360 day-count)
+(def PAYSETTLE-PROD-KEY (atom "8a19c04783160b4c01831689a2f52145"))
 (defonce CUSTID (atom nil))
 (defonce CUSTKEY (atom nil))
 (defonce ARESTCALC-ACCID (atom nil))
@@ -335,7 +335,7 @@
         _ (reset! INTONLY-ACCID arest-int-id)
         _ (reset! CUSTID custid)
         _ (reset! CUSTKEY cust-key)
-        _ (set-initial-payment-settings)
+        _ (set-initial-payment-settings (:monthly-start-date context0))
         ]
     (prn (str "New Customer + AnnualRest Mortgage  created - custid=" custid " calc-account=" arest-calc-id " prin-account=" arest-prin-id " int-account=" arest-int-id)) 
     ))
@@ -345,6 +345,16 @@
 
 (defn today-date+1 []
   (let [todayStr (today-date)
+        parts (str/split todayStr #"-")
+        year (first parts)
+        month (second parts)
+        day (nth parts 2)
+        ;; need next line see https://clojuredocs.org/clojure.core/read-string 
+        day (clojure.string/replace day #"^0+(?!$)" "")]
+    (str year "-" month "-" (format "%02d" (+ (read-string day) 1)))))
+
+(defn date+1 [change-date]
+  (let [todayStr (subs change-date 0 10)
         parts (str/split todayStr #"-")
         year (first parts)
         month (second parts)
@@ -376,9 +386,10 @@
       (first (rest (reverse filt-list))))))
 
 (defn set-initial-payment-settings
-  ([] (set-initial-payment-settings @ARESTCALC-ACCID @PRINONLY-ACCID @INTONLY-ACCID))
-  ([calcid prinid _intid]
-   (let [inst-obj (get-next-loan-instalment-after calcid (today-date))
+  ([] (set-initial-payment-settings @ARESTCALC-ACCID @PRINONLY-ACCID @INTONLY-ACCID (today-date)))
+  ([change-date] (set-initial-payment-settings @ARESTCALC-ACCID @PRINONLY-ACCID @INTONLY-ACCID change-date))
+  ([calcid prinid _intid change-date]
+   (let [inst-obj (get-next-loan-instalment-after calcid change-date) 
          prin-exp (get-in inst-obj ["principal" "amount" "expected"])
          int-exp (get-in inst-obj ["interest" "amount" "expected"])
          monthly-prin (/ prin-exp 12.0)
@@ -386,7 +397,7 @@
          _ (prn (str "set-initial-payment-settings: prin-monthly-amount=" monthly-prin " int-monthly-amount=" monthly-int))]
      (call-api change-periodic-payment-api {:accid prinid
                                             :amount monthly-prin
-                                            :value-date (addtime (today-date+1))}))
+                                            :value-date (addtime (date+1 change-date))}))
    @CUSTID))
 
 ;; On a yearly basis we will adjust the principal that the interest-only account is working against
@@ -439,7 +450,7 @@
 (defn filter-schedule-pending [loan-sch-list]
   (filter (fn [inst]
             (let [inst-state (get inst "state")]
-              (= inst-state "PENDING"))) loan-sch-list))
+              (or (= inst-state "PENDING") (= inst-state "LATE")))) loan-sch-list))
 
 ;; apply-to-end?=true only works for PrinOnly account
 (defn repayment-against-principle [accid amount apply-to-end?]
@@ -487,30 +498,6 @@
     (prn "Applying an overpayment (below threshold) - just update PrinOnly account")
     (call-api repayment-loan-api {:loanAccountId prinid :amount amount :externalId (api/uuid)}))))
 
-(comment
-
-(let [instal-list (get-in  (inst/get-loan-schedule {:accid @PRINONLY-ACCID}) [:last-call "installments"])
-      pending-list (filter-schedule-pending instal-list)
-      last-inst (first (rest (reverse pending-list)))]
-  last-inst)
-
-(call-api repayment-loan-api {:loanAccountId @PRINONLY-ACCID :amount 100000 :externalId (api/uuid) :custom-prin-only true})
-
-(call-api repayment-loan-api {:loanAccountId @PRINONLY-ACCID :amount 100000 :externalId (api/uuid)
-:installmentEncodedKey "8a19d41f8317b91401831c8881e10f7f"
-})
-
-(get-earliest-change-date @PRINONLY-ACCID )
-(call-api change-periodic-payment-api {:accid @PRINONLY-ACCID
-                                            :amount 407.7
-                                            :value-date (addtime (today-date+1))})
-
-;; ARESTCALC-ACCID PRINONLY-ACCID
-(repayment-against-principle @PRINONLY-ACCID 50000 true)
-
-;;
-)
-
 (defn get-dates []
   {;;:annual-start-date (addtime (today-date))
    ;;:annual-first-date (ext/adjust-timezone2 (str "2023-01-01T13:37:50" @DATEOFFSET) @TIMEZONE)
@@ -519,7 +506,17 @@
    :monthly-start-date (addtime (today-date))
    :monthly-first-date (addtime (add-month (today-date) 1))})
 
+(defn get-dates2 []
+  {:annual-start-date (addtime "2022-01-01")
+   :annual-first-date (addtime "2023-01-01")
+   :monthly-start-date (addtime "2022-01-01")
+   :monthly-first-date (addtime "2022-02-01")})
+
 (api/setenv "env17")
+
+;;********************************************************************************
+;; Functions to execute to show AnnualRest lifecycle events
+
 (comment
 
 ;; [0] Optional configure
@@ -527,15 +524,14 @@
 (reset! TIMEZONE "Europe/London")
 (reset! DATEOFFSET "+1:00") ;; adjust this for daylight savings
 
-
 ;; [1] Setup a new AnnualRest customer
-(create-new-annualrest-customer 16 (get-dates))
+(create-new-annualrest-customer 21 (get-dates))
 
 ;; [2] Change interest-rate
-(change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2024-01-01" 10.0)
+(change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2023-01-01" 10.0)
 
 ;; [3] Apply the yearly update
-(set-annual-payment-settings-update "2024-01-01")
+(set-annual-payment-settings-update "2023-01-01")
 
 ;; [4] Process an overpayment (above or below threshold @OVERPAYMENT-THRESHOLD)
 (process-overpayment @ARESTCALC-ACCID @PRINONLY-ACCID @INTONLY-ACCID 50000)
@@ -544,50 +540,31 @@
 (zap-cust {:custid @CUSTID})
 (zap-cust {:custid "798965158"})
 
-;; ***************************************************************
-;; Debugging steps
-
-(set-annual-payment-settings-update "2023-01-08" false)
-
-(today-date+1)
-
-(change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2023-01-01" 10.0)
-
-(set-annual-payment-settings-update "2022-10-07")
 
 
-(call-api get-loan-account {:accid @PRINONLY-ACCID})
+;; [6] Testing a specific example scenario
+(let [ 
+      prin-on-20220101 56789.00 
+      ;;prin-on-20220101 (- 56789.00 350.74)
+      ](create-new-annualrest-customer 992 (merge (get-dates2) {:amount prin-on-20220101 :annual-interest-rate 5.44})))
+(change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2022-04-01" 5.69)
+(change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2022-10-01" 5.99)
+(change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2022-12-15" 6.39)
 
-;; Setup initial payment amounts
-(set-initial-payment-settings)
 
-;; Get loan-schedule
-(get-next-loan-instalment-after @ARESTCALC-ACCID (today-date))
-(get-next-loan-instalment-after @ARESTCALC-ACCID "2023-01-01")
 
-;; Change periodic-amount
-(call-api change-periodic-payment-api {:accid @PRINONLY-ACCID
-                                       :amount 555
-                                       :value-date (addtime (today-date+1))})
-;; Find account
-(find-customer-account-id {:productKey @PAYSETTLE-PROD-KEY :custid @CUSTID })
-;; Test approval
-(call-api ext/approveLoanAccount {:loanAccountId "FMRC628"} )
 
-;; Test credit arrangement creation
-(call-api create-credit-arrangement {:cust-key @CUSTKEY :credit-limit 1000000})
-;; Ability to test individual account creation
-(call-api create-installment-loan-api1 {:cust-key @CUSTKEY
-                                        :amount 250000
-                                        :interest-rate 5.5 
-                                        :grace_period 299
-                                        :periodic-principal-payment 123
-                                        :num-installments 300
-                                        :prod-key @ARESTINT-PROD-KEY
-                                        :acc-name "AnnualRest Int"})
 
-(merge {:f1 1 } {:f1 4})
-(* 25 12)
+
+;; Debug functions
+(get-in  (inst/get-loan-schedule {:accid @PRINONLY-ACCID}) [:last-call "installments"])
+
+(call-api ext/disburse-loan-api {:loanAccountId @INTONLY-ACCID :value-date (addtime "2021-01-01") :first-date (addtime "2021-02-01")})
+
+(set-initial-payment-settings "2021-01-01")
+
+(- 60000 1182.81)
+(- 58817.19 56789)
 ;;
 
 )
