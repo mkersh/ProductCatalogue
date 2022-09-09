@@ -39,7 +39,7 @@
 
            
            ;; [STEP-2] Create  AnnualReview account
-           {:label "[STEP-2] Create Create Annual Review account"
+           {:label "[STEP-2] Create Annual Review account"
             :pre-filter [(steps/save-value-to-context @AREVMAIN-PROD-KEY :prod-key)
                          (steps/save-value-to-context "AnnualReview" :acc-name) 
                          (steps/save-context-value-to-context :num-monthly-installments :num-installments)
@@ -106,6 +106,7 @@
     prin-paid-total))
 
 ;; Determine if customer monthly-payments need to change
+;; This function will be triggered annually for each annual-review account
 (defn annual-review-account-update [accid change-date]
   (let [sch-list (get-in  (inst/get-loan-schedule {:accid accid}) [:last-call "installments"])
         filt-list-after (inst/filter-schedule-after sch-list change-date)
@@ -141,6 +142,7 @@
                    :value-date (rest/addtime change-date)}))   
 
 
+;; Mambu tenant to use
 (api/setenv "env17")
 
 (comment 
@@ -167,6 +169,12 @@
 (change-interest-rate @AREV-ACCID 5.99 "2022-10-01")
 (change-interest-rate @AREV-ACCID 6.39 "2022-12-15")
 (annual-review-account-update @AREV-ACCID "2023-01-01")
+
+
+
+
+
+
 
 ;; ****************************************************
 ;; Function calls used whilst testing
