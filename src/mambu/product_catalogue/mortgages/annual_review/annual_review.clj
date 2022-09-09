@@ -130,26 +130,40 @@
 (defn get-dates []
   {:loan-start-date (rest/addtime "2022-01-01")
    :loan-first-date (rest/addtime "2022-02-01")})
-   
+
+(defn change-interest-rate [accid int-rate change-date]
+  (steps/call-api rest/loan-interest-rate-change-api
+                  {:loanAccountId accid
+                   :interest-rate int-rate
+                   :value-date (rest/addtime change-date)}))   
 
 
 (api/setenv "env17")
 
 (comment 
 
-;; [1] Setup a new AnnualReview customer
- (create-new-annualreview-customer 3 (get-dates))
+;; [1] Setup a new AnnualReview customer 
+(create-new-annualreview-customer 4 (get-dates))
 
-;; [2] Perform an annual review update
+;; [2] Change interest-rate on the AnnualReview account
+;; NOTE: Monthly-payment does not change until annual-review-account-update is called
+(change-interest-rate @AREV-ACCID 3.89 "2022-04-01")
+
+;; [3] Perform an annual review update
 (annual-review-account-update @AREV-ACCID "2023-01-01")
-;; [2.1] Simulate repaymeents being made prior to revieew
+;; [3.1] Simulate repaymeents being made prior to revieew
 (steps/call-api rest/repayment-loan-api {:loanAccountId @AREV-ACCID :amount 20000.00 :externalId (api/uuid)})
 
-
-;; [3] Call next function to zap client and accounts
+;; [4] Call next function to zap client and accounts
  (rest/zap-cust {:custid @CUSTID})
 
 
+ ;; [5] Testing a specific example scenario
+(create-new-annualreview-customer 66 (merge (get-dates) {:amount 56789.00 :annual-interest-rate 5.44 :num-instalments 299}))
+(change-interest-rate @AREV-ACCID 5.69 "2022-04-01")
+(change-interest-rate @AREV-ACCID 5.99 "2022-10-01")
+(change-interest-rate @AREV-ACCID 6.39 "2022-12-15")
+(annual-review-account-update @AREV-ACCID "2023-01-01")
 
 ;; ****************************************************
 ;; Function calls used whilst testing
