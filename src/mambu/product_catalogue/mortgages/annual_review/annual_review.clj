@@ -4,7 +4,7 @@
            [http.api.mambu.demo.loyalty_points :as lpd]
            [http.api.mambu.experiments.loan_schedule :as ext]
            [http.api.mambu.solutions.int_change.int_change :as inst]
-           [mambu.product_catalogue.mortgages.annual_rest.annual_rest :as rest]))
+           [mambu.product_catalogue.mortgages.annual_rest.annual_rest :as rest])) 
 
 (def AREVCALC-PROD-KEY (atom "8a19a6bb8321062b0183216c27e14354")) 
 (def AREVMAIN-PROD-KEY (atom "8a19a6bb8321062b018321c386ea1ba9")) 

@@ -55,3 +55,4 @@ src/.calva/output-window/output.calva-repl
 src/.clj-kondo/.cache/v1/lock
 src/.clj-kondo/.cache/v1/clj/mambu.product_catalogue.mortgages.annual_rest.annual_rest.transit.json
 src/.lsp/.cache/db.transit.json
+src/.clj-kondo/.cache/v1/clj/mambu.product_catalogue.mortgages.annual_review.annual_review.transit.json
