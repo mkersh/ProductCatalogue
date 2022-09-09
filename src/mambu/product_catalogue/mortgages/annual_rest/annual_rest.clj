@@ -512,6 +512,7 @@
    :monthly-start-date (addtime "2022-01-01")
    :monthly-first-date (addtime "2022-02-01")})
 
+;; select Mamnu tenant
 (api/setenv "env17")
 
 ;;********************************************************************************
@@ -525,7 +526,7 @@
 (reset! DATEOFFSET "+1:00") ;; adjust this for daylight savings
 
 ;; [1] Setup a new AnnualRest customer
-(create-new-annualrest-customer 21 (get-dates))
+(create-new-annualrest-customer 777 (get-dates))
 
 ;; [2] Change interest-rate
 (change-interest-rate @ARESTCALC-ACCID @INTONLY-ACCID "2023-01-01" 10.0)
